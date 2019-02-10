@@ -140,9 +140,16 @@ class TokenAuthenticator extends AbstractGuardAuthenticator
             return null;
         }
 
-        return $this->em->getRepository(User::class)->findOneBy([
-            'apiToken'  => $token,
-        ]);
+        return $this->em->createQueryBuilder()
+            ->select('u')
+            ->from('App:User', 'u')
+            ->where('u.apiToken = :apiToken')
+            ->andWhere('u.apiTokenExpiration >= :now')
+            ->setParameter('apiToken', $token)
+            ->setParameter('now', new \DateTime("now", new \DateTimeZone("America/Mexico_City")))
+            ->getQuery()
+            ->getOneOrNullResult()
+        ;
     }
 
     /**
