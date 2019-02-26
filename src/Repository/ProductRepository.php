@@ -1,0 +1,91 @@
+<?php
+
+namespace App\Repository;
+
+use App\Entity\Product;
+use App\Entity\Provider;
+use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Symfony\Bridge\Doctrine\RegistryInterface;
+
+/**
+ * @method Product|null find($id, $lockMode = null, $lockVersion = null)
+ * @method Product|null findOneBy(array $criteria, array $orderBy = null)
+ * @method Product[]    findAll()
+ * @method Product[]    findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
+ */
+class ProductRepository extends ServiceEntityRepository
+{
+    public function __construct(RegistryInterface $registry)
+    {
+        parent::__construct($registry, Product::class);
+    }
+
+    /**
+     * @param Provider $provider
+     * @return Product[]
+     */
+    public function findByProvider(Provider $provider)
+    {
+        return $this->createQueryBuilder('p')
+            ->where('p.provider = :provider')
+            ->setParameter('provider', $provider)
+            ->orderBy('p.name', 'ASC')
+            ->getQuery()
+            ->getResult()
+        ;
+    }
+
+    /**
+     * Search product by name and provider
+     *
+     * @param Provider $provider
+     * @param $search
+     * @return Product[]
+     */
+    public function searchByProvider(Provider $provider, $search = '')
+    {
+        $q = $this->createQueryBuilder('p')
+            ->where('p.provider = :provider')
+            ->setParameter('provider', $provider)
+            ->setParameter('name', $search)
+        ;
+
+        if (0 !== strlen(trim($search))) {
+            $q
+                ->andWhere("p.name LIKE '%:name%'")
+                ->setParameter("name", $search)
+            ;
+        }
+
+        return $q->getQuery()->getResult();
+    }
+
+    // /**
+    //  * @return Product[] Returns an array of Product objects
+    //  */
+    /*
+    public function findByExampleField($value)
+    {
+        return $this->createQueryBuilder('p')
+            ->andWhere('p.exampleField = :val')
+            ->setParameter('val', $value)
+            ->orderBy('p.id', 'ASC')
+            ->setMaxResults(10)
+            ->getQuery()
+            ->getResult()
+        ;
+    }
+    */
+
+    /*
+    public function findOneBySomeField($value): ?Product
+    {
+        return $this->createQueryBuilder('p')
+            ->andWhere('p.exampleField = :val')
+            ->setParameter('val', $value)
+            ->getQuery()
+            ->getOneOrNullResult()
+        ;
+    }
+    */
+}
