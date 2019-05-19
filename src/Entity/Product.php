@@ -11,7 +11,7 @@ use Symfony\Component\Validator\Constraints as Assert;
  * @ORM\Entity(repositoryClass="App\Repository\ProductRepository")
  * @ORM\Table(name="aa_products")
  */
-class Product
+class Product implements \JsonSerializable
 {
     /**
      * @ORM\Id()
@@ -225,5 +225,41 @@ class Product
     public function isActive(): ?bool
     {
         return $this->active;
+    }
+
+    /**
+     * Specify data which should be serialized to JSON
+     * @link https://php.net/manual/en/jsonserializable.jsonserialize.php
+     * @return mixed data which can be serialized by <b>json_encode</b>,
+     * which is a value of any type other than a resource.
+     * @since 5.4.0
+     */
+    public function jsonSerialize()
+    {
+        return [
+            'id'            => $this->id,
+            'name'          => $this->name,
+            'description'   => $this->description,
+            'price'         => $this->price,
+            'qty'           => $this->qty,
+            'category'      => [
+                'id'    => $this->category->getId(),
+                'name'  => $this->category->getName(),
+            ],
+            'subCategory'   => is_null($this->subCategory) ?: [
+                'id'        => $this->subCategory->getId(),
+                'name'      => $this->subCategory->getName(),
+                'category'  => [
+                    'id'    => $this->subCategory->getCategory()->getId(),
+                    'name'  => $this->subCategory->getCategory()->getName(),
+                ],
+            ],
+            'provider'      => [
+                'id'    => $this->provider->getId(),
+                'name'  => $this->provider->getName(),
+            ],
+            'createdAt'     => DateTimeUtil::formatForJsonResponse($this->createdAt),
+            'active'        => $this->active,
+        ];
     }
 }
