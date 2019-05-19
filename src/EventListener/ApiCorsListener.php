@@ -67,7 +67,7 @@ class ApiCorsListener implements EventSubscriberInterface
         if ('OPTIONS' === $request->getMethod()) {
             $response = new Response();
             $response->headers->set('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
-            $response->headers->set('Access-Control-Allow-Headers', 'X-Custom-Auth');
+            $response->headers->set('Access-Control-Allow-Headers', 'X-Custom-Auth,content-type');
             $event->setResponse($response);
 
             return;
