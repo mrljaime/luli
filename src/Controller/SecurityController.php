@@ -40,10 +40,11 @@ class SecurityController extends BaseController
         /** @var User $user */
         $user = new User();
 
-        $email = $request->get('email');
-        $password = $request->get('password');
-        $name = $request->get('email');
-        $lastname = $request->get('lastname');
+        $data = json_decode($request->getContent(), true);
+        $email = $data['email'];
+        $password = $data['password'];
+        $name = $data['name'];
+        $lastname = $data['lastname'];
 
         $user
             ->setEmail($email)
@@ -95,8 +96,9 @@ class SecurityController extends BaseController
      */
     public function loginCheck(EntityManagerInterface $em, UserPasswordEncoderInterface $encoder, Request $request)
     {
-        $email = $request->get('_email');
-        $password = $request->get('_password');
+        $data = json_decode($request->getContent(), true);
+        $email = $data['_email'];
+        $password = $data['_password'];
         /** @var User $user */
         $user = $em->getRepository(User::class)->findOneBy([
             "email" => $email,
