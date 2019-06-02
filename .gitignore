@@ -14,3 +14,4 @@
 ###< symfony/web-server-bundle ###
 /*.sql
 /src/Migrations/*
+compopser.lock
