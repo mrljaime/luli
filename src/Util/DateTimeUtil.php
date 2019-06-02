@@ -28,8 +28,12 @@ class DateTimeUtil
      * @param \DateTime $dateTime
      * @return string|null
      */
-    public static function formatForJsonResponse(\DateTime $dateTime): ?string
+    public static function formatForJsonResponse(\DateTime $dateTime = null): ?string
     {
+        if (is_null($dateTime)) {
+            return null;
+        }
+
         return $dateTime->format("Y-m-d H:i:s");
     }
 }
