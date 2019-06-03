@@ -11,8 +11,18 @@ use Doctrine\ORM\Mapping as ORM;
  * @ORM\Entity(repositoryClass="App\Repository\MovementRepository")
  * @ORM\Table(name="aa_movements", indexes={@ORM\Index(name="search_idx", columns={"parent_class", "parent_id"})})
  */
-class Movement
+class Movement implements \JsonSerializable
 {
+    const DELAYED_PAYMENT = 1;
+
+    const TYPES = [
+        'delayedPayment'    => self::DELAYED_PAYMENT,
+    ];
+
+    const REVERSE_TYPES = [
+        self::DELAYED_PAYMENT   => 'delayedPayment',
+    ];
+
     /**
      * @ORM\Id()
      * @ORM\GeneratedValue()
@@ -21,8 +31,9 @@ class Movement
     private $id;
 
     /**
-     * @ORM\ManyToOne(targetEntity="App\Entity\MovementType")
-     * @ORM\JoinColumn(name="movement_type_id", referencedColumnName="id")
+     * @var integer
+     *
+     * @ORM\Column(name="type", columnDefinition="TINYINT(1)", nullable=false)
      */
     private $type;
 
@@ -41,6 +52,13 @@ class Movement
     private $parentId;
 
     /**
+     * @var string
+     *
+     * @ORM\Column(name="info", type="string", length=500)
+     */
+    private $info;
+
+    /**
      * @var \DateTime
      *
      * @ORM\Column(name="created_at", type="datetime")
@@ -54,6 +72,7 @@ class Movement
     public function __construct()
     {
         $this->createdAt = new \DateTime('now');
+        $this->info = "{}";
     }
 
     /**
@@ -111,5 +130,38 @@ class Movement
         $this->parentId = $parentId;
 
         return $this;
+    }
+
+    /**
+     * @return int|null
+     */
+    public function getParentId(): ?int
+    {
+        return $this->parentId;
+    }
+
+    /**
+     * @param $info
+     * @return Movement
+     */
+    public function setInfo($info): self
+    {
+        $this->info = $info;
+
+        return $this;
+    }
+
+    /**
+     * @return array|mixed
+     */
+    public function jsonSerialize()
+    {
+        return [
+            'id'            => $this->id,
+            'parentClass'   => $this->parentClass,
+            'parentId'      => $this->parentId,
+            'type'          => $this->type,
+            'info'          => $this->info
+        ];
     }
 }
