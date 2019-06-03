@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Util\DateTimeUtil;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -161,7 +162,8 @@ class Movement implements \JsonSerializable
             'parentClass'   => $this->parentClass,
             'parentId'      => $this->parentId,
             'type'          => $this->type,
-            'info'          => $this->info
+            'info'          => $this->info,
+            'createdAt'     => DateTimeUtil::formatForJsonResponse($this->createdAt),
         ];
     }
 }

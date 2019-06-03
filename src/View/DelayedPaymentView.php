@@ -27,7 +27,8 @@ class DelayedPaymentView extends AbstractView
             'id'        => $this->data['id'],
             'type'      => Movement::REVERSE_TYPES[$this->data['type']],
             'amount'    => $info['amount'],
-            'comment'   => $info['comment']
+            'comment'   => $info['comment'],
+            'createdAt' => $this->data['createdAt'],
         ];
     }
 }

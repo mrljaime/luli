@@ -71,7 +71,7 @@ class DelayedPaymentModel extends AbstractModel
         }
         $this->updateBalance($amount);
         $info = [
-            'amount'    => $amount,
+            'amount'    => (float) $amount,
             'comment'   => ArrayUtil::safe($request, 'comment', '')
         ];
         $this->entity->setInfo(json_encode($info));
