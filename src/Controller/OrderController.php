@@ -7,10 +7,13 @@
 
 namespace App\Controller;
 
+use App\Entity\Balance;
 use App\Entity\Order;
 use App\Entity\OrderElement;
 use App\Entity\Product;
 use App\Repository\ProductRepository;
+use App\Util\ArrayUtil;
+use App\Util\StatusUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController as BaseController;
@@ -55,13 +58,13 @@ class OrderController extends BaseController
     public function createAction(EntityManagerInterface $em, LoggerInterface $logger, Request $request)
     {
         $data = json_decode($request->getContent(), true);
-        if (!array_key_exists('discount', $data)) {
+        $discount = ArrayUtil::safe($data, 'discount', null);
+        if (is_null($discount)) {
             return $this->json([
                 'code'  => Response::HTTP_BAD_REQUEST,
                 'error' => 'The field discount is required',
             ]);
         }
-        $discount = $data['discount'];
 
         // In order to start transaction
         /*
@@ -147,6 +150,49 @@ class OrderController extends BaseController
 
         $em->persist($order);
         $em->flush();
+
+        /*
+         * **********************
+         * COMMIT
+         * **********************
+         */
+        $em->commit();
+
+        /*
+         * **********************
+         * BEGIN TRANSACTION
+         * **********************
+         */
+        $em->beginTransaction();
+
+        try {
+            // Balance
+            $balance = new Balance();
+            $balance
+                ->setParentClass(get_class($order))
+                ->setParentId($order->getId())
+                ->setAmount($order->getTotal())
+            ;
+
+            // In order to check that is payed
+            $paid = ArrayUtil::safe($data, 'paid', false);
+            if ((bool) $paid) {
+                $order->addStatus(StatusUtil::PAID);
+                $balance->setAmount(0);
+            }
+
+            $em->persist($order);
+            $em->persist($balance);
+            $em->flush();
+
+        } catch (\Exception $exception) {
+            /*
+             * **********************
+             * ROLLBACK
+             * **********************
+             */
+            $em->rollback();
+        }
 
         /*
          * **********************
