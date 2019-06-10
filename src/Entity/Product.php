@@ -40,7 +40,7 @@ class Product implements \JsonSerializable
      * @var $price float
      *
      * @ORM\Column(name="price", type="decimal", precision=10, scale=2)
-     * @Assert\Currency(message="El precio no es válido")
+     * @Assert\NotBlank(message="El precio es obligatorio")
      */
     private $price;
 
@@ -55,7 +55,7 @@ class Product implements \JsonSerializable
     /**
      * @var $category Category
      *
-     * @ORM\ManyToOne(targetEntity="App\Entity\Product")
+     * @ORM\ManyToOne(targetEntity="App\Entity\Category")
      */
     private $category;
 
@@ -91,7 +91,6 @@ class Product implements \JsonSerializable
      * @var $active bool
      *
      * @ORM\Column(name="active", type="boolean", options={"default": FALSE})
-     * @Assert\NotBlank(message="Saber si el producto está activo o no es obligatorio")
      */
     private $active;
 
