@@ -11,6 +11,7 @@ use App\Entity\Category;
 use App\Entity\Product;
 use App\Entity\Provider;
 use App\Entity\SubCategory;
+use App\Util\ArrayUtil;
 use App\Util\DateTimeUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -18,6 +19,8 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController as BaseControll
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Validator\ConstraintViolationInterface;
+use Symfony\Component\Validator\ConstraintViolationListInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 /**
@@ -113,9 +116,10 @@ class ProductsController extends BaseController
      */
     public function addAction(Request $request, EntityManagerInterface $em, ValidatorInterface $validator)
     {
-        $provider = $request->get('provider');
-        $category = $request->get('category');
-        $subCategory = $request->get('subCategory');
+        $iRequest = json_decode($request->getContent( ), true);
+        $provider = ArrayUtil::safe($iRequest, 'provider', null);
+        $category = ArrayUtil::safe($iRequest, 'category', null);
+        $subCategory = ArrayUtil::safe($iRequest, 'subCategory', null);
 
         /** @var Provider $provider */
         $provider = $em->getRepository(Provider::class)->find($provider);
@@ -148,11 +152,11 @@ class ProductsController extends BaseController
             ]);
         }
 
-        $name = $request->get('name');
-        $description = $request->get('description');
-        $price = $request->get('price');
-        $qty = $request->get('qty');
-        $active = $request->get('active');
+        $name = ArrayUtil::safe($iRequest, 'name', null);
+        $description = ArrayUtil::safe($iRequest, 'description', null);
+        $price = ArrayUtil::safe($iRequest, 'price', null);
+        $qty = ArrayUtil::safe($iRequest, 'qty', null);
+        $active = ArrayUtil::safe($iRequest, 'active', false);
 
         $product = new Product();
         $product
@@ -185,14 +189,15 @@ class ProductsController extends BaseController
         return $this->json([
             'code'  => Response::HTTP_CREATED,
             'data'  => [
-                'id'    => $product->getId(),
+                'id'        => $product->getId(),
+                'createAt'  => DateTimeUtil::formatForJsonResponse($product->getCreatedAt())
             ]
         ]);
     }
 
     /**
      * Update a product
-     * @Route("/{product}", name="products.update", methods={"PUT"})
+     * @Route("/{product}", name="products.update", methods={"POST"})
      *
      * @param $product
      * @param Request $request
@@ -218,7 +223,10 @@ class ProductsController extends BaseController
             ]);
         }
 
-        $provider = $request->get('provider');
+        /** @var array $data */
+        $data = json_decode($request->getContent(), true);
+
+        $provider = ArrayUtil::safe($data, 'provider');
         /** @var Provider $provider */
         $provider = $em->getRepository(Provider::class)->find($provider);
         if (is_null($provider)) {
@@ -228,8 +236,10 @@ class ProductsController extends BaseController
             ]);
         }
 
-        $category = $request->get('category');
-        $subCategory = $request->get('subCategory');
+        //$category = $request->get('category');
+        $category = ArrayUtil::safe($data, 'category');
+        //$subCategory = $request->get('subCategory');
+        $subCategory = ArrayUtil::safe($data, 'subCategory');
         /** @var Category $category */
         $category = $em->getRepository(Category::class)->find($category);
         if (is_null($category)) {
@@ -250,11 +260,16 @@ class ProductsController extends BaseController
             ]);
         }
 
-        $name = $request->get('name');
-        $description = $request->get('description');
-        $price = $request->get('price');
-        $qty = $request->get('qty');    // TODO: Check that qty can be updated without any validation
-        $active = $request->get('active');
+        //$name = $request->get('name');
+        $name = ArrayUtil::safe($data, 'name');
+        //$description = $request->get('description');
+        $description = ArrayUtil::safe($data, 'description');
+        //$price = $request->get('price');
+        $price = ArrayUtil::safe($data, 'price');
+        //$qty = $request->get('qty');    // TODO: Check that qty can be updated without any validation
+        $qty = ArrayUtil::safe($data, 'qty');
+        //$active = $request->get('active');
+        $active = ArrayUtil::safe($data, 'active', false);
 
         $product
             ->setName($name)
@@ -267,6 +282,21 @@ class ProductsController extends BaseController
             ->setProvider($provider)
             ->setUpdatedAt(DateTimeUtil::getDateTime())
         ;
+
+        /** @var ConstraintViolationListInterface $errors */
+        $errors = $validator->validate($product);
+        if (0 < $errors->count()) {
+            $messages = [];
+            /** @var ConstraintViolationInterface $error */
+            foreach ($errors as $error) {
+                $messages[] = $error->getMessage();
+            }
+
+            return $this->json([
+                'code'  => Response::HTTP_BAD_REQUEST,
+                'data'  => $messages
+            ]);
+        }
 
         /**
          * **********

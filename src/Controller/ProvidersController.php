@@ -5,7 +5,10 @@
 
 namespace App\Controller;
 
+use App\Entity\Balance;
 use App\Entity\Provider;
+use App\Util\ArrayUtil;
+use App\Util\DateTimeUtil;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -35,6 +38,12 @@ class ProvidersController extends BaseController
         $providers = $em->getRepository(Provider::class)->findActive();
         $data = [];
         foreach ($providers as $provider) {
+            /** @var Balance $balance */
+            $balance = $em->getRepository(Balance::class)->findOneBy([
+                'parentClass'   => get_class($provider),
+                'parentId'      => $provider->getId(),
+            ]);
+
             $data[] = [
                 'id'            => $provider->getId(),
                 'name'          => $provider->getName(),
@@ -42,6 +51,7 @@ class ProvidersController extends BaseController
                 'status'        => $provider->getStatus(),
                 'phoneNumber'   => $provider->getPhoneNumber(),
                 'uniqueId'      => $provider->getUniqueIdentifier(),
+                'balance'       => !is_null($balance) ? $balance->getAmount() : 0.00,
             ];
         }
 
@@ -70,6 +80,12 @@ class ProvidersController extends BaseController
             ]);
         }
 
+        /** @var Balance $balance */
+        $balance = $em->getRepository(Balance::class)->findOneBy([
+            'parentClass'   => get_class($provider),
+            'parentId'      => $provider->getId(),
+        ]);
+
         $data = [
             'id'            => $provider->getId(),
             'name'          => $provider->getName(),
@@ -77,6 +93,7 @@ class ProvidersController extends BaseController
             'status'        => $provider->getStatus(),
             'phoneNumber'   => $provider->getPhoneNumber(),
             'uniqueId'      => $provider->getUniqueIdentifier(),
+            'balance'       => !is_null($balance) ? $balance->getAmount() : 0.00
         ];
 
         return $this->json([
@@ -100,10 +117,11 @@ class ProvidersController extends BaseController
         LoggerInterface $logger,
         Request $request
     ) {
-        $name = $request->get('name');
-        $phoneNumber = $request->get('phoneNumber');
-        $uniqueId = $request->get('uniqueId');
-        $email = $request->get('email');
+        $iRequest = json_decode($request->getContent(), true);
+        $name = ArrayUtil::safe($iRequest, 'name', null);
+        $phoneNumber = ArrayUtil::safe($iRequest, 'phoneNumber', null);
+        $uniqueId = ArrayUtil::safe($iRequest, 'uniqueId', null);
+        $email = ArrayUtil::safe($iRequest, 'email', null);
 
         /** @var Provider $provider */
         $provider = new Provider();
@@ -128,10 +146,36 @@ class ProvidersController extends BaseController
             ]);
         }
 
+        /**
+         * ***************************
+         * BEGIN TRANSACTION
+         * ***************************
+         */
+        $em->beginTransaction();
+
         try {
             $em->persist($provider);
             $em->flush();
+
+            // Create balance
+            $balance = new Balance();
+            $balance
+                ->setParentClass(get_class($provider))
+                ->setParentId($provider->getId())
+                ->setAmount(0.00)
+            ;
+
+            $em->persist($balance);
+            $em->flush();
+
         } catch (UniqueConstraintViolationException $e) {
+            /**
+             * ***************************
+             * ROLLBACK
+             * ***************************
+             */
+            $em->rollback();
+
             $logger->error($e->getMessage());
             $logger->error($e->getTraceAsString());
 
@@ -140,6 +184,13 @@ class ProvidersController extends BaseController
                 'error' => 'El email o el identificador único ya están en uso por otro proveedor',
             ]);
         }
+
+        /**
+         * ***************************
+         * COMMIT
+         * ***************************
+         */
+        $em->commit();
 
         return $this->json([
             'code'  => Response::HTTP_CREATED,
@@ -151,7 +202,7 @@ class ProvidersController extends BaseController
     }
 
     /**
-     * @Route("/{provider}", name="providers.update", methods={"PUT"})
+     * @Route("/{provider}", name="providers.update", methods={"POST"})
      *
      * @param EntityManagerInterface $em
      * @param ValidatorInterface $validator
@@ -177,14 +228,17 @@ class ProvidersController extends BaseController
             ]);
         }
 
-        $name = $request->get('name');
-        $phoneNumber = $request->get('phoneNumber');
-        $uniqueId = $request->get('uniqueId');
-        $email = $request->get('email');
+        $iRequest = json_decode($request->getContent(), true);
+
+        $name = ArrayUtil::safe($iRequest, 'name', null);
+        $phoneNumber = ArrayUtil::safe($iRequest, 'phoneNumber', null);
+        $uniqueId = ArrayUtil::safe($iRequest, 'uniqueId', null);
+        $email = ArrayUtil::safe($iRequest, 'email', null);
 
         $provider
             ->setName($name)
             ->setPhoneNumber($phoneNumber)
+            ->setUpdatedAt(new \DateTime('now'))
         ;
         if ($provider->getEmail() !== $email) {
             $provider->setEmail($email);
@@ -192,7 +246,6 @@ class ProvidersController extends BaseController
         if ($provider->getUniqueIdentifier() !== $uniqueId) {
             $provider->setUniqueIdentifier($uniqueId);
         }
-
 
         $validations = $validator->validate($provider);
 
@@ -223,7 +276,10 @@ class ProvidersController extends BaseController
 
         return $this->json([
             'code'  => Response::HTTP_OK,
-            'data'  => 'Ok',
+            'data'  => [
+                'id'        => $provider->getId(),
+                'updatedAt' => DateTimeUtil::formatForJsonResponse($provider->getUpdatedAt()),
+            ],
         ]);
     }
 
