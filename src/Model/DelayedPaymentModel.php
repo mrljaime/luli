@@ -10,8 +10,12 @@ namespace App\Model;
 use App\Entity\Balance;
 use App\Entity\Movement;
 use App\Entity\Order;
+use App\Entity\OrderElement;
+use App\Entity\Product;
+use App\Entity\Provider;
 use App\Exception\BusinessLogicException;
 use App\Repository\OrderRepository;
+use App\Repository\ProductRepository;
 use App\Util\ArrayUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -34,6 +38,11 @@ class DelayedPaymentModel extends AbstractModel
     private $ordersRepository;
 
     /**
+     * @var ProductRepository
+     */
+    private $productsRepository;
+
+    /**
      * DelayedPaymentModel constructor.
      * @param EntityManagerInterface $em
      * @param LoggerInterface $logger
@@ -43,6 +52,7 @@ class DelayedPaymentModel extends AbstractModel
     {
         parent::__construct($em, $logger, $requestStack);
         $this->ordersRepository = $this->em->getRepository(Order::class);
+        $this->productsRepository = $this->em->getRepository(Product::class);
     }
 
     /**
@@ -109,8 +119,52 @@ class DelayedPaymentModel extends AbstractModel
             ->setAmount($balance->getAmount() -  $amount)
             ->setUpdatedAt(new \DateTime('now'))
         ;
+
+        /**
+         * In case that balance is zero os the total of the account
+         */
+        if (0 == $balance->getAmount()) {
+            $elements = $order->getElements();
+            /** @var OrderElement $element */
+            foreach ($elements as $element) {
+                // Search products
+                if ($element->getParentClass() === Product::class) {
+                    $product = $this->productsRepository->find($element->getParentId());
+                    if (is_null($product)) {
+                        throw new BusinessLogicException('No se ha encontrado el producto de la orden');
+                    }
+
+                    $this->updateProviderBalance($product->getProvider(), $product);
+                }
+            }
+        }
+
         $order->setUpdatedAt(new \DateTime('now'));
         $this->em->persist($balance);
         $this->em->persist($order);
+    }
+
+    /**
+     * Use to update balance just in case that movement is totally fund
+     *
+     * @param Provider $provider
+     * @param Product $product
+     * @throws BusinessLogicException
+     */
+    private function updateProviderBalance(Provider $provider, Product $product)
+    {
+        if (is_null($provider)) {
+            throw new BusinessLogicException('No se ha encontrado proveedor para el producto vendido.', 412);
+        }
+        /** @var Balance $balance */
+        $balance = $this->em->getRepository(Balance::class)->findOneBy([
+            'parentClass'   => Provider::class,
+            'parentId'      => $provider->getId(),
+        ]);
+        if (is_null($balance)) {
+            throw new BusinessLogicException('No se ha encontrado el balance del proveedor', 412);
+        }
+        $balance->addBalance($product->getPrice());
+        $this->em->persist($balance);
     }
 }
