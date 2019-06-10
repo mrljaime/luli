@@ -156,4 +156,15 @@ class Balance
 
         return $this;
     }
+
+    /**
+     * @param $amount
+     * @return Balance
+     */
+    public function addBalance($amount): self
+    {
+        $this->amount += $amount;
+
+        return $this;
+    }
 }
