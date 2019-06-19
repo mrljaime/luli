@@ -144,6 +144,7 @@ class MovementsController extends BaseController
              * ROLLBACK
              */
             $em->rollback();
+            $logger->error(sprintf('%s - %s', $exception->getMessage(), $exception->getTraceAsString()));
 
             if (Response::HTTP_PRECONDITION_FAILED === $exception->getCode()) {
                 return $this->json([
