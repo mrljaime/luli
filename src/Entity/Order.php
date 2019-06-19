@@ -258,8 +258,8 @@ class Order implements \JsonSerializable
     public function jsonSerialize()
     {
         $data = [
-            'id'    => $this->id,
-            'total' => $this->total,
+            'id'        => $this->id,
+            'total'     => $this->total,
             'discount'  => $this->discount,
             'interest'  => $this->interest,
             'pending'   => StatusUtil::isPending($this->status),
