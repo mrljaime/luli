@@ -19,6 +19,19 @@ class SubCategoryRepository extends ServiceEntityRepository
         parent::__construct($registry, SubCategory::class);
     }
 
+    /**
+     * @return SubCategory[]
+     */
+    public function findAllOrdered()
+    {
+        return $this->createQueryBuilder('sc')
+            ->select('sc')
+            ->orderBy('sc.name', 'ASC')
+            ->getQuery()
+            ->getResult()
+        ;
+    }
+
     // /**
     //  * @return SubCategory[] Returns an array of SubCategory objects
     //  */
