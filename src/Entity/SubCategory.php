@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Util\DateTimeUtil;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -29,6 +30,22 @@ class SubCategory implements \JsonSerializable
      * @ORM\Column(name="name", type="string", length=125)
      */
     private $name;
+
+    /**
+     * @var \DateTime
+     *
+     * @ORM\Column(name="created_at", type="datetime", nullable=true)
+     */
+    private $createdAt;
+
+    /**
+     * SubCategory constructor.
+     * @throws \Exception
+     */
+    public function __construct()
+    {
+        $this->createdAt = new \DateTime('now');
+    }
 
     public function getId(): ?int
     {
@@ -60,6 +77,14 @@ class SubCategory implements \JsonSerializable
     }
 
     /**
+     * @return \DateTime
+     */
+    public function getCreatedAt()
+    {
+        return $this->createdAt;
+    }
+
+    /**
      * Specify data which should be serialized to JSON
      * @link https://php.net/manual/en/jsonserializable.jsonserialize.php
      * @return mixed data which can be serialized by <b>json_encode</b>,
@@ -73,7 +98,8 @@ class SubCategory implements \JsonSerializable
             'name'      => $this->name,
             'category'  => [
                 'id'    => $this->category->getId(),
-            ]
+            ],
+            'createdAt' => DateTimeUtil::formatForJsonResponse($this->createdAt),
         ];
     }
 }
