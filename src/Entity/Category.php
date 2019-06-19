@@ -5,6 +5,7 @@
 
 namespace App\Entity;
 
+use App\Util\DateTimeUtil;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -27,6 +28,22 @@ class Category implements \JsonSerializable
      * @ORM\Column(name="name", type="string", length=125)
      */
     private $name;
+
+    /**
+     * @var \DateTime
+     *
+     * @ORM\Column(name="created_at", type="datetime", nullable=true)
+     */
+    private $createdAt;
+
+    /**
+     * Category constructor.
+     * @throws \Exception
+     */
+    public function __construct()
+    {
+        $this->createdAt = new \DateTime('now');
+    }
 
     public function getId(): ?int
     {
@@ -55,8 +72,9 @@ class Category implements \JsonSerializable
     public function jsonSerialize()
     {
         return [
-            'id'    => $this->id,
-            'name'  => $this->name,
+            'id'        => $this->id,
+            'name'      => $this->name,
+            'createdAt' => DateTimeUtil::formatForJsonResponse($this->createdAt),
         ];
     }
 }
