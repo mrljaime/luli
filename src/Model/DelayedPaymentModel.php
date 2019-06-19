@@ -17,6 +17,7 @@ use App\Exception\BusinessLogicException;
 use App\Repository\OrderRepository;
 use App\Repository\ProductRepository;
 use App\Util\ArrayUtil;
+use App\Util\StatusUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -124,6 +125,7 @@ class DelayedPaymentModel extends AbstractModel
          * In case that balance is zero os the total of the account
          */
         if (0 == $balance->getAmount()) {
+            $order->addStatus(StatusUtil::PAID);
             $elements = $order->getElements();
             /** @var OrderElement $element */
             foreach ($elements as $element) {
