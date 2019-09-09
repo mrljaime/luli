@@ -11,6 +11,8 @@ use App\Entity\Balance;
 use App\Entity\Order;
 use App\Entity\OrderElement;
 use App\Entity\Product;
+use App\Repository\OrderElementRepository;
+use App\Repository\OrderRepository;
 use App\Repository\ProductRepository;
 use App\Util\ArrayUtil;
 use App\Util\StatusUtil;
@@ -43,6 +45,63 @@ class OrderController extends BaseController
         return $this->json([
             'code'  => Response::HTTP_OK,
             'data'  => $orders,
+        ]);
+    }
+
+    /**
+     * @Route("/{order}", methods={"GET"})
+     *
+     * @param EntityManagerInterface $em
+     * @param $order
+     * @return \Symfony\Component\HttpFoundation\JsonResponse
+     */
+    public function getAction(EntityManagerInterface $em, $order)
+    {
+        /** @var Order $order */
+        $order = $em->getRepository(Order::class)->find($order);
+
+        return $this->json([
+            'code'  => Response::HTTP_OK,
+            'data'  => $order,
+        ]);
+    }
+
+    /**
+     * @Route("/{order}/products")
+     *
+     * @param EntityManagerInterface $em
+     * @param $order integer
+     * @return \Symfony\Component\HttpFoundation\JsonResponse
+     */
+    public function getProducts(EntityManagerInterface $em, $order)
+    {
+        /** @var Order $order */
+        $order = $em->getRepository(Order::class)->find($order);
+        if (is_null($order)) {
+            return $this->json([
+                'code'  => Response::HTTP_NOT_FOUND,
+                'error' => 'No se ha encontrado la orden para encontrar los artículos',
+            ]);
+        }
+
+        $products = [];
+        /** @var ProductRepository $productsRepository */
+        $productsRepository = $em->getRepository(Product::class);
+        /** @var OrderElement $element */
+        foreach ($order->getElements()->getIterator() as $element) {
+            $product = $productsRepository->find($element->getParentId());
+            $products[] = [
+                'id'        => $product->getId(),
+                'name'      => $product->getName(),
+                'qty'       => $element->getQty(),
+                'price'     => $product->getPrice(),
+                'amount'    => $element->getAmount(),
+            ];
+        }
+
+        return $this->json([
+            'code'  => Response::HTTP_OK,
+            'data'  => $products,
         ]);
     }
 
@@ -82,20 +141,21 @@ class OrderController extends BaseController
         $em->persist($order);
 
         // In case that create an order without elements
-        if (!array_key_exists('products', $data) || 0 == count($data['products'])) {
-            /*
-             * **********************
-             * ROLLBACK
-             * **********************
-             */
-            $em->rollback();
-
-            return $this->json([
-                'code'  => Response::HTTP_BAD_REQUEST,
-                'error' => 'Field products are required and need at lest one'
-            ]);
-        }
-        $products = $data['products'];
+        // Because specification provided orders without products until order is completed
+//        if (!array_key_exists('products', $data) || 0 == count($data['products'])) {
+//            /*
+//             * **********************
+//             * ROLLBACK
+//             * **********************
+//             */
+//            $em->rollback();
+//
+//            return $this->json([
+//                'code'  => Response::HTTP_BAD_REQUEST,
+//                'error' => 'Field products are required and need at lest one'
+//            ]);
+//        }
+        $products = ArrayUtil::safe($data, 'products', []);
 
         /** @var ProductRepository $productsRepository */
         $productsRepository = $em->getRepository(Product::class); // Allocate once to avoid overhead
@@ -126,7 +186,7 @@ class OrderController extends BaseController
 
                 return $this->json([
                     'code'  => 400,
-                    'error' => 'Not enough elements qty products to satisfied order'
+                    'error' => "El inventario del producto {$product->getName()} no satisface la cantidad solicitada"
                 ]);
             }
 
@@ -206,4 +266,151 @@ class OrderController extends BaseController
             'data'  => $order
         ]);
     }
+
+    /**
+     * @Route("/{order}/addElements", methods={"POST"})
+     *
+     * @param EntityManagerInterface $em
+     * @param Request $request
+     * @param $order int
+     * @return \Symfony\Component\HttpFoundation\JsonResponse
+     * @throws \Doctrine\ORM\NonUniqueResultException
+     */
+    public function addOrderElements(EntityManagerInterface $em, LoggerInterface $logger, Request $request, $order)
+    {
+        /** @var Order $order */
+        $order = $em->getRepository(Order::class)->find($order);
+        if (is_null($order)) {
+            return $this->json([
+                'code'  => Response::HTTP_NOT_FOUND,
+                'error' => 'No se ha encontrado la orden para agregar para agregar los artículos'
+            ]);
+        }
+        $data = json_decode($request->getContent(), true);
+        $products = ArrayUtil::safe($data, 'products', []);
+        $logger->debug(var_export($products, true));
+
+        $err = false;
+        $errMessage = '';
+
+        /**
+         * ******************************
+         * BEGIN TRANSACTION
+         * ******************************
+         */
+        $em->beginTransaction();
+
+        $elementsAmount = 0.00; // Use to track new elements of order and aggregate to original order balance
+        /** @var ProductRepository $productsRepository */
+        $productsRepository = $em->getRepository(Product::class); // Once
+        /** @var OrderElementRepository $orderElementRepository */
+        $orderElementRepository = $em->getRepository(OrderElement::class); // Once
+        foreach ($products as $element) {
+            /** @var Product $product */
+            $product = $productsRepository->find(ArrayUtil::safe($element, 'id', -1));
+
+            if (is_null($product)) { // Product doesn't exists
+                $err = true;
+                $errMessage = 'No se ha encontrado un artículo para agregar a la orden';
+
+                break;
+            }
+
+            if ($product->getQty() < $element['qty']) {
+                $err = true;
+                $errMessage = "La cantidad de artículos para el producto {$product->getName()} supera el inventario";
+
+                break;
+            }
+
+            $elementsAmount += $product->getPrice() * $element['qty']; // In order to update balance of order
+
+            // Try to find order element to avoid duplicate it, just update it
+            /** @var OrderElement $orderElement */
+            $orderElement = $orderElementRepository->findByParent($order, get_class($product), $product->getId());
+            if (!is_null($orderElement)) {
+                $orderElement
+                    ->addQty($element['qty'])
+                    ->addAmount($product->getPrice() * $element['qty'])
+                ;
+                $logger->debug(var_export($order->getTotal(), true));
+                $order->addToTotal($product->getPrice() * $element['qty']);
+                $logger->debug(var_export($order->getTotal(), true));
+
+            } else {
+                /** @var OrderElement $orderElement */
+                $orderElement = new OrderElement();
+                $orderElement
+                    ->setParentClass(get_class($product))
+                    ->setParentId($product->getId())
+                    ->setQty($element['qty'])
+                    ->setAmount($product->getPrice() * $element['qty'])
+                    ->setLabel($product->getName())
+                ;
+                $order->addElement($orderElement);
+            }
+
+            // In order to discount from inventorys
+            $product->setQty($product->getQty() - $element['qty']);
+            $em->persist($orderElement);
+            $em->persist($product);
+            $em->persist($order);
+        }
+
+        if ($err) {
+            /**
+             * ******************************
+             * ROLLBACK
+             * ******************************
+             */
+            $em->rollback();
+
+            return $this->json([
+                'code'  => Response::HTTP_BAD_REQUEST,
+                'error' => $errMessage,
+            ]);
+        }
+
+        $em->flush();
+        /**
+         * ******************************
+         * COMMIT
+         * ******************************
+         */
+        $em->commit();
+
+        // New transaction to avoid losing data about elements in order
+        /**
+         * ******************************
+         * BEGIN TRANSACTION
+         * ******************************
+         */
+        $em->beginTransaction();
+        /** @var Balance $balance */
+        $balance = $em->getRepository(Balance::class)->findByParent(get_class($order), $order->getId());
+        if (is_null($balance)) {
+            $balance = new Balance();
+            $balance
+                ->setParentClass(get_class($order))
+                ->setParentId($order->getId())
+            ;
+        }
+
+        $balance->addBalance($elementsAmount);
+
+        $em->persist($balance);
+        $em->flush();
+        /**
+         * ******************************
+         * COMMIT
+         * ******************************
+         */
+        $em->commit();
+
+        return $this->json([
+            'code'  => Response::HTTP_CREATED,
+            'data'  => $order
+        ]);
+    }
+
 }
