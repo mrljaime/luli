@@ -39,7 +39,18 @@ class ProductsController extends BaseController
      */
     public function listAction(EntityManagerInterface $em)
     {
-        $products = $em->getRepository(Product::class)->findAll();
+        /** @var Product[] $products */
+        $products = $em->createQuery(
+            '
+            SELECT
+                p
+            FROM App:Product p
+            ORDER BY p.name  
+            '
+        )
+            ->getResult()
+        ;
+        //$products = $em->getRepository(Product::class)->findAll();
 
         return $this->json([
             'code'  => Response::HTTP_OK,

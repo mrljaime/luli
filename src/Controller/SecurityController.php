@@ -149,4 +149,9 @@ class SecurityController extends BaseController
             ],
         ]);
     }
+
+    public function changePasswordAction()
+    {
+
+    }
 }
