@@ -249,6 +249,17 @@ class Order implements \JsonSerializable
     }
 
     /**
+     * @param $amount
+     * @return Order
+     */
+    public function addToTotal($amount): self
+    {
+        $this->total += $amount;
+
+        return $this;
+    }
+
+    /**
      * Specify data which should be serialized to JSON
      * @link https://php.net/manual/en/jsonserializable.jsonserialize.php
      * @return mixed data which can be serialized by <b>json_encode</b>,

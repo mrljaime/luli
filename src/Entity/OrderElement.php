@@ -204,6 +204,28 @@ class OrderElement implements \JsonSerializable
     }
 
     /**
+     * @param $qty
+     * @return OrderElement
+     */
+    public function addQty($qty): self
+    {
+        $this->qty += $qty;
+
+        return $this;
+    }
+
+    /**
+     * @param $amount
+     * @return OrderElement
+     */
+    public function addAmount($amount): self
+    {
+        $this->amount += $amount;
+
+        return $this;
+    }
+
+    /**
      * Specify data which should be serialized to JSON
      * @link https://php.net/manual/en/jsonserializable.jsonserialize.php
      * @return mixed data which can be serialized by <b>json_encode</b>,
