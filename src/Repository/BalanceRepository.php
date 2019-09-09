@@ -19,6 +19,27 @@ class BalanceRepository extends ServiceEntityRepository
         parent::__construct($registry, Balance::class);
     }
 
+    /**
+     * @param $parentClass string
+     * @param $parentId int
+     * @return Balance
+     * @throws \Doctrine\ORM\NonUniqueResultException
+     */
+    public function findByParent($parentClass, $parentId)
+    {
+        return $this
+            ->createQueryBuilder('b')
+            ->select('b')
+            ->where('b.parentClass = :parentClass')
+            ->andWhere('b.parentId = :parentId')
+            ->setParameter('parentClass', $parentClass)
+            ->setParameter('parentId', $parentId)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult()
+            ;
+    }
+
     // /**
     //  * @return Balance[] Returns an array of Balance objects
     //  */

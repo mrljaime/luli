@@ -30,7 +30,7 @@ class OrderRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('o')
             ->select('o', 'oe')
-            ->join('o.elements', 'oe')
+            ->leftJoin('o.elements', 'oe')
             ->getQuery()
             ->getResult()
         ;

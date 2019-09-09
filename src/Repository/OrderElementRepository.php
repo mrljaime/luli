@@ -19,6 +19,30 @@ class OrderElementRepository extends ServiceEntityRepository
         parent::__construct($registry, OrderElement::class);
     }
 
+    /**
+     * Find active order element
+     *
+     * @param $parentClass
+     * @param $parentId
+     * @return mixed
+     * @throws \Doctrine\ORM\NonUniqueResultException
+     */
+    public function findByParent($order, $parentClass, $parentId)
+    {
+        return $this->createQueryBuilder('oe')
+            ->select('oe')
+            ->where('oe.order = :order')
+            ->andWhere('oe.parentClass = :parentClass')
+            ->andWhere('oe.parentId = :parentId')
+            ->setParameter('order', $order)
+            ->setParameter('parentClass', $parentClass)
+            ->setParameter('parentId', $parentId)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult()
+        ;
+    }
+
     // /**
     //  * @return OrderElement[] Returns an array of OrderElement objects
     //  */
