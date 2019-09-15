@@ -19,6 +19,8 @@ class StatusUtil
 
     const SENT = 0x4;
 
+    const CLOSED = 0x10;
+
     /**
      * @param $pending
      * @return bool
@@ -44,5 +46,14 @@ class StatusUtil
     public static function isSent($sent)
     {
         return (0 != (self::SENT & $sent));
+    }
+
+    /**
+     * @param $closed
+     * @return bool
+     */
+    public static function isClosed($closed)
+    {
+        return (0 != (self::CLOSED & $closed));
     }
 }
