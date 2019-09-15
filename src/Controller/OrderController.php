@@ -96,6 +96,7 @@ class OrderController extends BaseController
                 'qty'       => $element->getQty(),
                 'price'     => $product->getPrice(),
                 'amount'    => $element->getAmount(),
+                'interest'  => $element->getInterest(),
             ];
         }
 
@@ -323,7 +324,9 @@ class OrderController extends BaseController
                 break;
             }
 
-            $elementsAmount += $product->getPrice() * $element['qty']; // In order to update balance of order
+            $orderAmount = $product->getPrice() * $element['qty'];
+            $orderAmountInterest = $orderAmount * ($product->getInterest() / 100);
+            $elementsAmount += $orderAmount + $orderAmountInterest; // In order to update balance of order
 
             // Try to find order element to avoid duplicate it, just update it
             /** @var OrderElement $orderElement */
@@ -331,11 +334,13 @@ class OrderController extends BaseController
             if (!is_null($orderElement)) {
                 $orderElement
                     ->addQty($element['qty'])
-                    ->addAmount($product->getPrice() * $element['qty'])
+                    ->setInterest($orderAmountInterest)
+                    ->addAmount($orderAmount + $orderAmountInterest)
                 ;
-                $logger->debug(var_export($order->getTotal(), true));
-                $order->addToTotal($product->getPrice() * $element['qty']);
-                $logger->debug(var_export($order->getTotal(), true));
+                $order
+                    ->addToTotal($orderAmount + $orderAmountInterest)
+                    ->addToInterest($orderAmountInterest)
+                ;
 
             } else {
                 /** @var OrderElement $orderElement */
@@ -344,7 +349,8 @@ class OrderController extends BaseController
                     ->setParentClass(get_class($product))
                     ->setParentId($product->getId())
                     ->setQty($element['qty'])
-                    ->setAmount($product->getPrice() * $element['qty'])
+                    ->setInterest($orderAmountInterest)
+                    ->addAmount($orderAmount + $orderAmountInterest)
                     ->setLabel($product->getName())
                 ;
                 $order->addElement($orderElement);
@@ -413,4 +419,49 @@ class OrderController extends BaseController
         ]);
     }
 
+    /**
+     * @Route("/{order}/status")
+     *
+     * @param EntityManagerInterface $em
+     * @param Request $request
+     * @param $order
+     * @return \Symfony\Component\HttpFoundation\JsonResponse
+     */
+    public function addStatus(EntityManagerInterface $em, Request $request, $order)
+    {
+        /** @var Order $order */
+        $order = $em->getRepository(Order::class)->find($order);
+        if (is_null($order)) {
+            return $this->json([
+                'code'  => Response::HTTP_NOT_FOUND,
+                'error' => 'No se ha encontrado la orden',
+            ]);
+        }
+        $data = json_decode($request->getContent(), true);
+        $status = ArrayUtil::safe($data, 'status', StatusUtil::PENDING);
+
+        /**
+         * ********************
+         * BEGIN TRANSACTION
+         * ********************
+         */
+        $em->beginTransaction();
+
+        $order->addStatus($status);
+
+        $em->persist($order);
+        $em->flush();
+
+        /**
+         * ********************
+         * COMMIT
+         * ********************
+         */
+        $em->commit();
+
+        return $this->json([
+            'code'  => Response::HTTP_OK,
+            'data'  => $order,
+        ]);
+    }
 }
