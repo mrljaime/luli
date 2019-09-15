@@ -44,6 +44,13 @@ class OrderElement implements \JsonSerializable
     private $qty;
 
     /**
+     * @var float
+     *
+     * @ORM\Column(name="interest", type="decimal", precision=10, scale=2, options={"default": 0.00})
+     */
+    private $interest;
+
+    /**
      * @var string
      *
      * @ORM\Column(name="label", type="string", length=75)
@@ -136,6 +143,25 @@ class OrderElement implements \JsonSerializable
     public function getQty(): ?int
     {
         return $this->qty;
+    }
+
+    /**
+     * @param $interest float
+     * @return $this
+     */
+    public function setInterest($interest): self
+    {
+        $this->interest = $interest;
+
+        return $this;
+    }
+
+    /**
+     * @return float|null
+     */
+    public function getInterest(): ?float
+    {
+        return $this->interest;
     }
 
     /**
