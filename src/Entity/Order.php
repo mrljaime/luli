@@ -231,6 +231,7 @@ class Order implements \JsonSerializable
         $element->setOrder($this);
         $this->elements->add($element);
         $this->total += $element->getAmount();
+        $this->interest += $element->getInterest();
 
         return $this;
     }
@@ -260,6 +261,17 @@ class Order implements \JsonSerializable
     }
 
     /**
+     * @param $amount
+     * @return $this
+     */
+    public function addToInterest($amount): self
+    {
+        $this->interest += $amount;
+
+        return $this;
+    }
+
+    /**
      * Specify data which should be serialized to JSON
      * @link https://php.net/manual/en/jsonserializable.jsonserialize.php
      * @return mixed data which can be serialized by <b>json_encode</b>,
@@ -276,6 +288,7 @@ class Order implements \JsonSerializable
             'pending'   => StatusUtil::isPending($this->status),
             'paid'      => StatusUtil::isPaid($this->status),
             'sent'      => StatusUtil::isSent($this->status),
+            'closed'    => StatusUtil::isClosed($this->status),
             'createdAt' => DateTimeUtil::formatForJsonResponse($this->createdAt),
             'updatedAt' => DateTimeUtil::formatForJsonResponse($this->updatedAt),
             'elements'  => $this->elements->count(),
