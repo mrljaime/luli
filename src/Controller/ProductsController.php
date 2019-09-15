@@ -168,6 +168,7 @@ class ProductsController extends BaseController
         $price = ArrayUtil::safe($iRequest, 'price', null);
         $qty = ArrayUtil::safe($iRequest, 'qty', null);
         $active = ArrayUtil::safe($iRequest, 'active', false);
+        $interest = ArrayUtil::safe($iRequest, 'interest', 0.00);
 
         $product = new Product();
         $product
@@ -179,6 +180,7 @@ class ProductsController extends BaseController
             ->setCategory($category)
             ->setSubCategory($subCategory)
             ->setProvider($provider)
+            ->setInterest($interest)
         ;
 
         $validations = $validator->validate($product);
@@ -281,11 +283,13 @@ class ProductsController extends BaseController
         $qty = ArrayUtil::safe($data, 'qty');
         //$active = $request->get('active');
         $active = ArrayUtil::safe($data, 'active', false);
+        $interest = ArrayUtil::safe($data, 'interest', 0.00);
 
         $product
             ->setName($name)
             ->setDescription($description)
             ->setPrice($price)
+            ->setInterest($interest)
             ->setQty($qty)
             ->setActive($active)
             ->setCategory($category)
