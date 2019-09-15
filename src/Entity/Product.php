@@ -45,6 +45,14 @@ class Product implements \JsonSerializable
     private $price;
 
     /**
+     * @var float
+     *
+     * @ORM\Column(name="interest", type="decimal", precision=10, scale=2, options={"default": 0.00})
+     * @Assert\NotBlank(message="El interés no puede estar vacío")
+     */
+    private $interest;
+
+    /**
      * @var $qty integer
      *
      * @ORM\Column(name="qty", type="smallint")
@@ -140,6 +148,18 @@ class Product implements \JsonSerializable
         $this->price = $price;
 
         return $this;
+    }
+
+    public function setInterest($interest): self
+    {
+        $this->interest = $interest;
+
+        return $this;
+    }
+
+    public function getInterest(): ?float
+    {
+        return $this->interest;
     }
 
     public function getQty(): ?int
@@ -240,6 +260,7 @@ class Product implements \JsonSerializable
             'name'          => $this->name,
             'description'   => $this->description,
             'price'         => $this->price,
+            'interest'      => $this->interest,
             'qty'           => $this->qty,
             'category'      => [
                 'id'    => $this->category->getId(),
